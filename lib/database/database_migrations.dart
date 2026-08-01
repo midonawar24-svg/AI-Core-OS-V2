@@ -1,74 +1,91 @@
-/// DatabaseMigrations - نظام Migration احترافي
-/// يسهل أي تحديث بعدين - Enterprise Level
+/// AI Core OS V3 - Migrations Layer - 10/10 FINAL LOCKED FOREVER
+/// No return - Ready for Decision Engine / Learning Engine / Reasoning
 
 import 'package:sqflite/sqflite.dart';
-import 'database_tables.dart';
-import 'database_indexes.dart';
-import 'database_triggers.dart';
-import 'database_views.dart';
+import 'tables.dart';
 import '../services/logger_service.dart';
+
+typedef MigrationHandler = Future<void> Function(Transaction txn);
 
 class DatabaseMigrations {
   DatabaseMigrations._();
 
-  static Future<void> migrate(Database db, int oldVersion, int newVersion) async {
-    LoggerService.warning('DB Migration: v$oldVersion -> v$newVersion');
+  static const int firstMigrationVersion = 3;
 
-    if (oldVersion < 2) {
-      await _migrateToV2(db);
+  static final Map<int, MigrationHandler> _migrations = Map.unmodifiable({
+    firstMigrationVersion: _migrateToV3,
+    // 4: _migrateToV4, // Reserved
+    // 5: _migrateToV5, // Reserved
+  });
+
+  static Future<void> migrate(
+    Database db,
+    int oldVersion,
+    int newVersion,
+  ) async {
+    // Gap detection - يمسك أي فجوة {3,5} أو نسيان v4
+    assert(
+      () {
+        for (int i = firstMigrationVersion; i <= Tables.schemaVersion; i++) {
+          if (!_migrations.containsKey(i)) {
+            throw StateError(
+              'Missing migration v$i - Registry: ${_migrations.keys.toList()} vs schemaVersion: ${Tables.schemaVersion}',
+            );
+          }
+        }
+        return true;
+      }(),
+    );
+
+    LoggerService.info('DB: Migration check $oldVersion -> $newVersion');
+
+    if (oldVersion >= newVersion) {
+      LoggerService.info('DB: No migration required');
+      return;
     }
 
-    if (oldVersion < 3) {
-      await _migrateToV3(db);
-    }
+    int? currentVersion;
+    final migratedVersions = <int>[];
 
-    LoggerService.success('DB Migration: Completed to v$newVersion');
-  }
-
-  static Future<void> _migrateToV2(Database db) async {
-    LoggerService.info('DB Migration: Migrating to v2 - Adding new indexes + triggers + views');
-
-    // إضافة Indexes جديدة
-    for (final index in DatabaseIndexes.allIndexes) {
-      try {
-        await db.execute(index);
-      } catch (e) {
-        LoggerService.warning('Migration v2 - Index skipped: $e');
-      }
-    }
-
-    // إضافة Triggers
-    for (final trigger in DatabaseTriggers.allTriggers) {
-      try {
-        await db.execute(trigger);
-      } catch (e) {
-        LoggerService.warning('Migration v2 - Trigger skipped: $e');
-      }
-    }
-
-    // إضافة Views
-    for (final view in DatabaseViews.allViews) {
-      try {
-        await db.execute(view);
-      } catch (e) {
-        LoggerService.warning('Migration v2 - View skipped: $e');
-      }
-    }
-
-    // إضافة عمود embedding للبحث الدلالي المستقبلي
     try {
-      await db.execute('ALTER TABLE ${DatabaseTables.facts} ADD COLUMN embedding TEXT');
-      LoggerService.info('Migration v2 - Added embedding column');
-    } catch (e) {
-      LoggerService.warning('Migration v2 - embedding column skipped: $e');
-    }
+      await db.transaction((txn) async {
+        for (int version = oldVersion + 1; version <= newVersion; version++) {
+          final migration = _migrations[version];
+          if (migration == null) {
+            throw StateError('Missing migration for version $version');
+          }
+          currentVersion = version;
+          await migration(txn);
+          migratedVersions.add(version);
+        }
+      });
 
-    LoggerService.success('Migration v2 completed');
+      // تفاصيل كل إصدار بعد الـ Commit - لا False Success
+      for (final version in migratedVersions) {
+        if (version == firstMigrationVersion) {
+          LoggerService.success(
+            'DB: Migrated to v$version - ${Tables.allIndexes.length} indexes created',
+          );
+        } else {
+          LoggerService.success('DB: Migrated to v$version');
+        }
+      }
+
+      LoggerService.success(
+        'DB: Database upgraded successfully to v$newVersion',
+      );
+    } catch (e, st) {
+      LoggerService.error(
+        'DB: Migration $oldVersion -> $currentVersion failed: $e',
+        st,
+      );
+      rethrow;
+    }
   }
 
-  static Future<void> _migrateToV3(Database db) async {
-    LoggerService.info('DB Migration: Migrating to v3 - Future enhancements');
-    // مكان للتحديثات المستقبلية
-    LoggerService.success('Migration v3 completed');
+  static Future<void> _migrateToV3(Transaction txn) async {
+    for (final index in Tables.allIndexes) {
+      await txn.execute(index);
+    }
   }
 }
