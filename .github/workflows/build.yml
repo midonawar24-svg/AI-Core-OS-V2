@@ -1,4 +1,4 @@
-name: Build AI Core OS V2 Pro
+name: Build AI Core OS V3 - Neural Engine
 on: [push]
 jobs:
   build:
@@ -13,33 +13,17 @@ jobs:
         with:
           flutter-version: '3.24.5'
           channel: 'stable'
-      - name: Build AI Core OS V2 Pro - Professional
+      - name: Build V3 - Neural Engine
         run: |
+          cp -r lib /tmp/lib_backup
+          cp pubspec.yaml /tmp/pubspec.yaml
           rm -rf android .dart_tool build
-          flutter create --platforms=android --project-name ai_core_os_v2_pro --org com.nawar.ai . --overwrite
-          cat > pubspec.yaml << 'YAML'
-          name: ai_core_os_v2_pro
-          description: AI Core OS V2 Pro - Professional
-          publish_to: 'none'
-          version: 2.0.0+200
-          environment:
-            sdk: ">=3.0.0 <4.0.0"
-          dependencies:
-            flutter:
-              sdk: flutter
-            local_auth: 2.1.7
-            flutter_tts: 4.2.3
-            speech_to_text: 6.6.2
-            shared_preferences: 2.3.2
-            permission_handler: 11.3.1
-            sqflite: 2.3.3+1
-            path: 1.9.0
-          flutter:
-            uses-material-design: true
-          YAML
-          sed -i 's/compileSdkVersion 34/compileSdkVersion 35/g' android/app/build.gradle || true
+          flutter create --platforms=android --project-name ai_core_os_v3 --org com.nawar.ai . --overwrite
+          rm -rf lib
+          cp -r /tmp/lib_backup lib
+          cp /tmp/pubspec.yaml pubspec.yaml
+          ls -R lib | head -n 100
           sed -i 's/compileSdk = 34/compileSdk = 35/g' android/app/build.gradle || true
-          sed -i 's/targetSdkVersion 34/targetSdkVersion 35/g' android/app/build.gradle || true
           sed -i 's/targetSdk = 34/targetSdk = 35/g' android/app/build.gradle || true
           sed -i 's/id "org.jetbrains.kotlin.android" version "[^"]*"/id "org.jetbrains.kotlin.android" version "2.1.10"/' android/settings.gradle || true
           flutter clean
@@ -48,5 +32,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: ai-core-os-v2-pro
+          name: ai-core-os-v3-neural
           path: build/app/outputs/flutter-apk/app-release.apk
