@@ -44,7 +44,22 @@ class _MemoryScreenState extends State<MemoryScreen> {
         Card(color: Colors.white.withOpacity(0.05), child: Padding(padding: const EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           const Text('Neural Engine Stats', style: TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold, fontSize: 12)),
           const SizedBox(height: 8),
-          FutureBuilder(future: _aiCore.getStats(), builder: (ctx, snap) { if (!snap.hasData) return const Text('...'); final data = snap.data!; final neural = data['neural'] as Map; return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Docs: ${neural['documents']}'), Text('Skills: ${data['skills']}'), Text('Threshold: ${neural['threshold']}')]); }),
+          FutureBuilder<Map<String, dynamic>>(
+            future: _aiCore.getStats(),
+            builder: (ctx, snap) {
+              if (!snap.hasData) return const Text('...', style: TextStyle(fontSize: 11));
+              final data = snap.data!;
+              final neural = data['neural'] as Map<String, dynamic>;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Docs: ${neural['documents']}', style: const TextStyle(fontSize: 11)),
+                  Text('Skills: ${data['skills']}', style: const TextStyle(fontSize: 11)),
+                  Text('Threshold: ${neural['threshold']}', style: const TextStyle(fontSize: 11)),
+                ],
+              );
+            },
+          ),
         ]))),
       ]),
     );
